@@ -1,0 +1,22 @@
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.0';
+const $=id=>document.getElementById(id);
+const cfg=await fetch('/site-config.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).catch(()=>({}));
+if(!cfg.url||!cfg.publishableKey||cfg.url.includes('REPLACE')){$('setup').hidden=false;}else{
+const sb=createClient(cfg.url,cfg.publishableKey);
+let records=[];
+async function refresh(){const {data:{user}}=await sb.auth.getUser();if(!user){$('auth').hidden=false;$('dashboard').hidden=true;return;}
+const {data:role}=await sb.from('site_roles').select('role').eq('user_id',user.id).single();
+$('auth').hidden=true;$('dashboard').hidden=role?.role!=='admin';$('account').textContent=user.email||'Administrator';
+if(role?.role!=='admin'){$('auth').hidden=false;$('authMessage').textContent='This account is not an administrator.';return;}
+const {data,error}=await sb.from('site_content').select('*').order('created_at',{ascending:false});
+if(error){$('editorMessage').textContent=error.message;return;}records=data||[];
+$('items').replaceChildren(...records.map(r=>{const div=document.createElement('div');div.className='row';const label=document.createElement('span');label.textContent=r.title+' · '+r.type+' · '+(r.published?'Published':'Draft');const actions=document.createElement('div');const edit=document.createElement('button');edit.textContent='Edit';edit.onclick=()=>{['id','title','slug','type','summary','body'].forEach(k=>{const field=k==='id'?'recordId':k;$(field).value=r[k]||''});$('mediaUrl').value=r.media_url||'';$('published').checked=r.published;window.scrollTo({top:350,behavior:'smooth'})};const del=document.createElement('button');del.textContent='Delete';del.className='danger';del.onclick=async()=>{if(!confirm('Delete this content?'))return;const {error}=await sb.from('site_content').delete().eq('id',r.id);if(error)alert(error.message);else refresh()};actions.append(edit,del);div.append(label,actions);return div}));
+const q=await sb.from('site_enquiries').select('*').order('created_at',{ascending:false}).limit(100);$('enquiries').replaceChildren(...(q.data||[]).map(e=>{const d=document.createElement('div');d.className='row';const t=document.createElement('div');const title=document.createElement('strong');title.textContent=e.name+' · '+e.topic;const msg=document.createElement('p');msg.textContent=e.message;const mail=document.createElement('a');mail.href='mailto:'+encodeURIComponent(e.email);mail.textContent=e.email;t.append(title,msg,mail);d.append(t);return d}));}
+$('authForm').onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});$('authMessage').textContent=error?.message||'';if(!error)refresh()};
+$('register').onclick=async()=>{if(!confirm('Only the first registered user becomes administrator. Continue?'))return;const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});$('authMessage').textContent=error?.message||'Registration submitted. If email confirmation is enabled, confirm your address before signing in.';if(!error)refresh()};
+$('signout').onclick=async()=>{await sb.auth.signOut();refresh()};
+$('clear').onclick=()=>{$('editor').reset();$('recordId').value='';$('editorMessage').textContent=''};
+$('editor').onsubmit=async e=>{e.preventDefault();const payload={title:$('title').value,slug:$('slug').value,type:$('type').value,summary:$('summary').value,body:$('body').value,media_url:$('mediaUrl').value||null,published:$('published').checked,updated_at:new Date().toISOString()};const id=$('recordId').value;const {error}=id?await sb.from('site_content').update(payload).eq('id',id):await sb.from('site_content').insert(payload);$('editorMessage').textContent=error?.message||'Saved successfully';if(!error){$('clear').click();refresh()}};
+$('upload').onclick=async()=>{const file=$('mediaFile').files[0];if(!file)return;if(file.size>50*1024*1024){$('uploadMessage').textContent='Maximum file size is 50 MB';return;}const path=crypto.randomUUID()+'-'+file.name.replace(/[^a-z0-9._-]/gi,'-');const {error}=await sb.storage.from('site-media').upload(path,file,{upsert:false});if(error){$('uploadMessage').textContent=error.message;return;}const {data}=sb.storage.from('site-media').getPublicUrl(path);$('mediaUrl').value=data.publicUrl;$('uploadMessage').textContent='Uploaded. URL added to content editor; save a content item to publish it.'};
+await refresh();sb.auth.onAuthStateChange(()=>setTimeout(refresh,0));
+}
