@@ -1,8 +1,9 @@
 {
-  "apiKey": "REPLACE_ME",
-  "authDomain": "REPLACE_ME",
-  "projectId": "REPLACE_ME",
-  "storageBucket": "REPLACE_ME",
-  "messagingSenderId": "REPLACE_ME",
-  "appId": "REPLACE_ME"
+  "apiKey": "AIzaSyBLdU5Z8EbmYVuVRL7e65Mz3uwpeoOVGrk",
+  "authDomain": "hamilton-24b78.firebaseapp.com",
+  "projectId": "hamilton-24b78",
+  "storageBucket": "hamilton-24b78.firebasestorage.app",
+  "messagingSenderId": "771150300119",
+  "appId": "1:771150300119:web:76b69752767da5246e4192",
+  "measurementId": "G-8V2YCBSWQ7"
 }
